@@ -3,19 +3,29 @@ import chess
 from ai import ChessAI
 from move_helper import MoveHelper
 from ui import UI
+from tips import top_tips
 
 def main():
     ui = UI()
     label, depth, rand = ui.prompt_menu()
+    play_white = ui.prompt_side()
+
     ai = ChessAI(max_depth=depth, randomness=rand)
     helper = MoveHelper(ai)
 
+    white_bottom = play_white
     board = chess.Board()
     selected = None
     show_hints = False
     legal_targets = []
     last_move = None
     clock = pygame.time.Clock()
+
+    if not play_white:
+        ai_move = ai.choose_move(board)
+        if ai_move:
+            board.push(ai_move)
+            last_move = ai_move
 
     while True:
         for e in pygame.event.get():
@@ -27,26 +37,29 @@ def main():
                 if e.key == pygame.K_h:
                     show_hints = not show_hints
             if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
-                sq = ui.mouse_to_square(e.pos)
+                if ui.button_rect.collidepoint(e.pos):
+                    show_hints = not show_hints
+                    continue
+                sq = ui.mouse_to_square(e.pos, white_bottom)
                 if sq is None:
                     continue
                 if selected is None:
-                    piece = board.piece_at(sq)
-                    if piece and piece.color == board.turn:
+                    p = board.piece_at(sq)
+                    if p and p.color == board.turn:
                         selected = sq
                         legal_targets = [m.to_square for m in board.legal_moves if m.from_square == sq]
                 else:
-                    move = chess.Move(selected, sq)
-                    if move in board.legal_moves:
-                        board.push(move)
-                        last_move = move
+                    mv = chess.Move(selected, sq)
+                    if mv in board.legal_moves:
+                        board.push(mv)
+                        last_move = mv
                         selected = None
                         legal_targets = []
                         if not board.is_game_over():
-                            ai_move = ai.choose_move(board)
-                            if ai_move:
-                                board.push(ai_move)
-                                last_move = ai_move
+                            ai_mv = ai.choose_move(board)
+                            if ai_mv:
+                                board.push(ai_mv)
+                                last_move = ai_mv
                     else:
                         selected = None
                         legal_targets = []
@@ -56,11 +69,13 @@ def main():
             selected,
             legal_targets,
             [m[0].to_square for m in helper.suggestions(board)] if show_hints and not board.is_game_over() else [],
-            last_move
+            last_move,
+            white_bottom
         )
         main_text = status_text(board, label, show_hints)
         sub_text = last_move_text(board)
-        ui.draw_panel(main_text, sub_text)
+        tips = top_tips(board, ai, 5) if show_hints and not board.is_game_over() else []
+        ui.draw_panel(main_text, sub_text, show_hints, tips)
         pygame.display.flip()
         clock.tick(60)
 

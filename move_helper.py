@@ -6,5 +6,5 @@ class MoveHelper:
     def __init__(self, ai: ChessAI):
         self.ai = ai
 
-    def suggestions(self, board: chess.Board, k: int = 3) -> List[Tuple[chess.Move, int]]:
+    def suggestions(self, board: chess.Board, k: int = 5) -> List[Tuple[chess.Move, int]]:
         return self.ai.top_moves(board, k)

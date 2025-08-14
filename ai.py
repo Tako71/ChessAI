@@ -26,7 +26,7 @@ KNIGHT_TABLE = [
     -50,-40,-30,-30,-30,-30,-40,-50,
     -40,-20,  0,  0,  0,  0,-20,-40,
     -30,  0, 10, 15, 15, 10,  0,-30,
-    -30,  5, 15, 20, 20, 15,  5,-30,
+    -30,  5, 15, 20, 20,  5,-30,
     -30,  0, 15, 20, 20, 15,  0,-30,
     -30,  5, 10, 15, 15, 10,  5,-30,
     -40,-20,  0,  5,  5,  0,-20,-40,
@@ -88,73 +88,70 @@ def evaluate(board: chess.Board) -> int:
         return 0
     score = 0
     for sq in chess.SQUARES:
-        piece = board.piece_at(sq)
-        if not piece:
+        p = board.piece_at(sq)
+        if not p:
             continue
-        val = PIECE_VALUES[piece.piece_type]
-        pst = TABLES[piece.piece_type][sq if piece.color == chess.WHITE else chess.square_mirror(sq)]
-        score += (val + pst) if piece.color == chess.WHITE else -(val + pst)
+        val = PIECE_VALUES[p.piece_type]
+        pst = TABLES[p.piece_type][sq if p.color == chess.WHITE else chess.square_mirror(sq)]
+        score += (val + pst) if p.color == chess.WHITE else -(val + pst)
     return score
 
 class ChessAI:
-    def __init__(self, max_depth: int = 2, randomness: float = 0.0):
+    def __init__(self, max_depth: int = 3, randomness: float = 0.0):
         self.max_depth = max_depth
         self.rand = randomness
 
     def choose_move(self, board: chess.Board) -> Optional[chess.Move]:
-        best_score = -math.inf
+        best = -math.inf
         best_moves: List[chess.Move] = []
-        for move in self._ordered_moves(board):
-            board.push(move)
+        for mv in self._ordered_moves(board):
+            board.push(mv)
             score = -self._alphabeta(board, self.max_depth - 1, -math.inf, math.inf)
             board.pop()
-            if score > best_score:
-                best_score = score
-                best_moves = [move]
-            elif score == best_score:
-                best_moves.append(move)
+            if score > best:
+                best = score
+                best_moves = [mv]
+            elif score == best:
+                best_moves.append(mv)
         if not best_moves:
             return None
-        if self.rand > 0 and random.random() < self.rand and len(best_moves) > 1:
+        if self.rand > 0 and len(best_moves) > 1 and random.random() < self.rand:
             return random.choice(best_moves)
         return random.choice(best_moves)
 
-    def top_moves(self, board: chess.Board, k: int = 3) -> List[Tuple[chess.Move, int]]:
-        scored = []
-        for move in self._ordered_moves(board):
-            board.push(move)
+    def top_moves(self, board: chess.Board, k: int = 5) -> List[Tuple[chess.Move, int]]:
+        out = []
+        for mv in self._ordered_moves(board):
+            board.push(mv)
             score = -self._alphabeta(board, self.max_depth - 1, -math.inf, math.inf)
             board.pop()
-            scored.append((move, score))
-        scored.sort(key=lambda x: x[1], reverse=True)
-        return scored[:k]
+            out.append((mv, score))
+        out.sort(key=lambda x: x[1], reverse=True)
+        return out[:k]
 
     def _alphabeta(self, board: chess.Board, depth: int, alpha: float, beta: float) -> int:
         if depth == 0 or board.is_game_over():
             return evaluate(board)
-        value = -math.inf
-        for move in self._ordered_moves(board):
-            board.push(move)
+        val = -math.inf
+        for mv in self._ordered_moves(board):
+            board.push(mv)
             score = -self._alphabeta(board, depth - 1, -beta, -alpha)
             board.pop()
-            if score > value:
-                value = score
-            if value > alpha:
-                alpha = value
+            if score > val:
+                val = score
+            if val > alpha:
+                alpha = val
             if alpha >= beta:
                 break
-        return value if value != -math.inf else evaluate(board)
+        return val if val != -math.inf else evaluate(board)
 
     def _ordered_moves(self, board: chess.Board):
         def mv_score(m: chess.Move):
             s = 0
-            if board.is_capture(m):
-                s += 1000
-            if board.gives_check(m):
-                s += 50
-            if m.promotion:
-                s += 900
+            if board.is_capture(m): s += 1000
+            if board.gives_check(m): s += 50
+            if m.promotion: s += 900
             return s
-        moves = list(board.legal_moves)
-        moves.sort(key=mv_score, reverse=True)
-        return moves
+        mv = list(board.legal_moves)
+        mv.sort(key=mv_score, reverse=True)
+        return mv
